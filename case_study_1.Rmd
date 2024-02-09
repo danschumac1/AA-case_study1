@@ -1,0 +1,97 @@
+---
+title: "Bank Job"
+author: "Dan Schumacher"
+date: "2024-01-30"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressWarnings(suppressMessages({
+  library(tidyverse)
+  library(car)
+  library(broom)
+  library(DescTools)
+  library(ROCR)
+  library(lmtest)
+  library(dplyr)
+  library(caret)
+}))
+```
+
+Setting my personal work directory to read in the csv file. Using csv2 because it is ';' delimited.
+```{r}
+df_bank = read_csv2('./data/bank-additional.csv')
+
+# List of columns to convert to factors
+columns_to_factorize <- c("job", "marital", "education", "housing", 
+                          "loan", "contact", "month", "day_of_week", "poutcome", 
+                          "euribor3m")
+
+colnames(df_bank)
+
+# Loop through each column and convert to factor
+for (col in columns_to_factorize) {
+  df_bank[[col]] <- as.factor(df_bank[[col]])
+}
+
+# remove NAs?
+# contact, pdays, poutcome
+
+df_bank <- df_bank %>%
+  mutate(
+    pdays_cat = case_when(
+      pdays == 999 ~ 'NEVER CALLED OR ONLY CALLED ONCE',
+      pdays >= 1 & pdays <= 7 ~ '0-1 WEEKS BETWEEN LAST 2 CALLS',
+      pdays >= 8 & pdays <= 14 ~ '1-2 WEEKS BETWEEN LAST 2 CALLS',
+      pdays >= 15 & pdays <= 21 ~ '2-3 WEEK BETWEEN LAST 2 CALLS',
+      TRUE ~ 'MONKEY BRAINS'  # Using NA_character_ as the column is categorical
+    )
+  )
+
+df_bank <- df_bank %>%
+  mutate(
+    y_binary = case_when(
+      tolower(y) == 'yes' ~ 1,
+      tolower(y) == 'no' ~ 0,
+      TRUE ~ NA_integer_ 
+    )
+  )
+
+# GET RID OF THESE COLUMNS
+df_bank <- df_bank %>%
+  dplyr::select(
+    -c(y, default, duration, pdays)
+  )
+
+# REMOVE NAs
+df_bank <-df_bank %>% 
+  na.omit(df_bank)
+
+# train test split
+set.seed(42)
+splitIndex <- createDataPartition(df_bank$y_binary, p=.8,list=F)
+df_train <- df_bank[splitIndex,]
+df_train <- df_bank[-splitIndex,]
+
+m1 = glm(y_binary ~ ., df_train, family = 'binomial')
+summary(m1)
+vif(m1)
+
+range(na.omit(df_bank$pdays))
+# month is month last called
+# pdays is the number of days that passed between 2nd last call and last call.
+
+unique(df_bank$pdays) ### replace 999 with NAS
+
+df_bank$pdays[df_bank$poutcome == 'nonexistent'] <- NA
+
+df_bank$poutcome ### nonexistent
+```
+
+
+
+```{r}
+# drop duration
+
+```
+
