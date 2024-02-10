@@ -1,0 +1,81 @@
+---
+title: "Untitled"
+author: "Dan Schumacher"
+date: "2024-02-09"
+output: html_document
+---
+
+
+```{r}
+library(dplyr)
+```
+
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(car)
+
+# Reading CSV file
+df_bank <- read.csv(
+  file = './data/bank-additional.csv',
+  sep = ';',
+  na.strings = c('unknown')
+)
+
+
+# Convert pdays to a categorical column
+df_bank$pdays_cat <- case_when(
+  df_bank$pdays == 999 ~ 'NEVER CALLED OR ONLY CALLED ONCE',
+  df_bank$pdays >= 1 & df_bank$pdays <= 7 ~ '0-1 WEEKS BETWEEN LAST 2 CALLS',
+  df_bank$pdays >= 8 & df_bank$pdays <= 14 ~ '1-2 WEEKS BETWEEN LAST 2 CALLS',
+  df_bank$pdays >= 15 & df_bank$pdays <= 21 ~ '2-3 WEEK BETWEEN LAST 2 CALLS',
+  TRUE ~ NA_character_
+)
+
+# Recode y to be binary (1 = YES, 0 = NO)
+df_bank$y <- ifelse(tolower(df_bank$y) == 'yes', 1, 0)
+
+# Drop specified columns
+df_bank <- df_bank[, !(names(df_bank) %in% c('default', 'duration', 'pdays', 'month', 'day_of_week'))]
+
+# Define categorical columns
+categorical_cols <- c("job", "marital", "education", "housing", "loan", "contact", "poutcome", "pdays_cat")
+
+# Convert columns to factors
+for (col in categorical_cols) {
+  df_bank[[col]] <- as.factor(df_bank[[col]])
+}
+
+y = df_bank$y
+df_bank <- select(df_bank, -y)
+
+numeric_cols <- sapply(df_bank, is.numeric)
+df_bank_numeric <- df_bank[, numeric_cols]
+
+
+# Print VIF values
+
+# Assuming df contains only predictor variables
+# Fit a linear model with all numeric predictors (excluding the dependent variable y)
+lm_model <- lm(y ~ ., data = df_bank_numeric)
+
+# Calculate VIF
+vif_values <- vif(lm_model)
+
+# Print VIF values
+
+
+# Drop the column 'emp.var.rate'
+df_bank_numeric <- df_bank_numeric[, !names(df_bank_numeric) %in% "emp.var.rate"]
+lm_model <- lm(y ~ ., data = df_bank_numeric)
+vif_values <- vif(lm_model)
+
+df_bank_numeric <- df_bank_numeric[, !names(df_bank_numeric) %in% "euribor3m"]
+
+lm_model <- lm(y ~ ., data = df_bank_numeric)
+vif_values <- vif(lm_model)
+print(vif_values)
+
+```
+
